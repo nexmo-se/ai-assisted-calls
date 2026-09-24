@@ -129,7 +129,16 @@ for example, it looks like
 
 https://xxxx.ngrok.xxx/call?number=12995551212
 
-Upon answering the call, the callee will get connected to the AI engine(s).
+- Upon answering the call, the first party (e.g. customer) will get connected to the AI engine(s) via a WebSocket,
+- then at some point the first party may say "Transfer my call to a human agent" (or something similar),
+- the AI engine triggers a tool calling (generating a "/transfer" webhook from the Connector server application to this Voice API server application) at which point the first party call is put on hold and the WebSocket to the AI engine(s) is terminated,
+- in parallel, a call to the second party (e.g. human agent) is initiated which upon answer is connected via WebSocket to the AI engine(s),
+- then at some point the second party may say "Transfer my call to the customer" (or something similar) 
+- the AI engine triggers a tool calling (generating a "/transfer" webhook from the Connector server application to this Voice API server application) at which point the second party call is put on hold and the WebSocket to the AI engine(s) is terminated,
+- 2-channel audio recording is started,
+- the first party call is transferred and bridged to the second party call to start a human to human phone conversation,
+- on call termination, the 2-channel audio recording file is available.
+
 
 Of course, you may programmatically initiate outbound calls by using the API call listed in the corresponding webhook section, i.e. `/call` route, of the program<br>
 _ai-assisted-calls.js_<br>
