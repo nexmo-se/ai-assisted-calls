@@ -1,6 +1,6 @@
-# Sample application using Vonage Voice API to connect Voice Calls to AI Engines
+# Sample application using Vonage Voice API to handle AI-assisted voice calls and handover to human agents
 
-You may use this Voice API application to connect voice calls to AI Engines using one of the Connectors listed in the Set up section.
+You may use this Voice API application to connect voice calls to STS or tradtional STT-LLM-TTS AI engines with the handling call transfers to human participants.
 
 Voice calls may be:</br>
 inbound/outbound,</br>
@@ -12,40 +12,22 @@ SIP calls with [SIP endpoints](https://developer.vonage.com/en/voice/voice-api/c
 
 This application connects voice calls to a Connector server by using the [WebSockets feature](https://developer.vonage.com/en/voice/voice-api/concepts/websockets) of Vonage Voice API.</br>
 
-When a voice call is established, this Voice API application triggers a WebSocket connection from Vonage platform to the Connector server which streams audio in one or both directions between the voice call and the AI engines. 
+When a voice call is established, this Voice API application triggers a WebSocket connection from Vonage platform to the Connector server which streams audio in one or both directions between the voice call and the AI engines.
+
+A human party (e.g. customer) may get connected to another human party (e.g. human agent) after each have first interacted  with an AI assistant.
 
 Instead of using this sample Voice API application, you may use your own existing Voice API application to establish WebSockets with the Connector server to connect your managed voice calls with the AI engines.
 
 Your new or existing Voice API application may be written with any programming language using [server SDKs](https://developer.vonage.com/en/tools) or with direct [REST API](https://developer.vonage.com/en/api/voice) calls.
 
-You may instead have your Vonage [Video API WebRTC Clients](https://developer.vonage.com/en/tools) establish sessions with AI engines through the Video API's [Audio Connector](https://developer.vonage.com/en/video/guides/audio-connector) and the peer Connector server as listed in the next section, in which case this Voice API application is not needed.
-
 ## Set up
 
 ### Set up the sample Connector server - Host server public hostname and port
 
-First set up the Connector server (aka middleware server) from one of the following repositories</br>
+First set up the Connector server (aka middleware server) from the following repository</br>
 
-Deepgram Voice Agent</br>
- https://github.com/nexmo-se/vonage-deepgram-voice-agent,</br></br>
 Deepgram ASR - OpenAI LLM - ElevenLabs TTS</br>
 https://github.com/nexmo-se/dg-oai-11l-connector,</br></br>
-ElevenLabs Agent</br>
-https://github.com/nexmo-se/elevenlabs-agent-ws-connector,</br></br>
-Deepgram ASR</br>
-https://github.com/nexmo-se/deepgram-connector,</br></br>
-OpenAI STS Realtime API</br>
-https://github.com/nexmo-se/openai-realtime-connector,</br></br>
-Hume STS EVI + Immersitech Noise Cancellation / Voice Isolation</br>
-https://github.com/nexmo-se/humeai-connector,</br></br>
-
-https://github.com/nexmo-se/websocket-server-variant-3.</br> 
-
-_Note:
-The current repository https://github.com/nexmo-se/vonage-deepgram-voice-agent combines both the sample Voice API application and the Connector application in one server program.<br>
-As of now, you may use only the Connector part of it with your existing Voice API application to connect to Deepgram Voice Agent. Change its listening port from 8000 to 6000.<br>
-Soon, the standalone Connector application for Deepgram Voice Agent will be created like the other Connector repositories listed above._
-
 
 Default local (not public!) of any one of the Connector servers `port` is: 6000.
 
@@ -123,22 +105,12 @@ npm install
 
 Launch the server application with either of the following commands:<br>
 ```bash
-node voice-to-ai-engines
+node ai-assisted-calls
 ```
-or
-```bash
-node voice-to-ai-engines-with-transfer-to-live-agent
-```
-
-The second server application initiates a call transfer to a live person (after 15 seconds in this sample code). 
 
 Default local (not public!) `port` of either server application is: 8000.
 
 ### How to make PSTN calls
-
-#### Inbound calling
-
-Call the **`phone number linked`** to your application to get connected to the AI engine(s).
 
 #### Outbound calling
 
@@ -155,13 +127,11 @@ https://xxxx.ngrok.xxx/call?number=12995551212
 Upon answering the call, the callee will get connected to the AI engine(s).
 
 Of course, you may programmatically initiate outbound calls by using the API call listed in the corresponding webhook section, i.e. `/call` route, of the program<br>
-_voice-to-ai-engines.js_<br>
-or<br>
-_voice-to-ai-engines-with-transfer-to-live-agent.js_.
+_ai-assisted-calls.js_<br>
 
-## Additional resources
+#### Inbound calling
 
-If you have questions, join our [Community Slack](https://developer.vonage.com/community/slack) or message us on [X](https://twitter.com/VonageDev?adobe_mc=MCMID%3D61117212728348884173699984659581708157%7CMCORGID%3DA8833BC75245AF9E0A490D4D%2540AdobeOrg%7CTS%3D1740259490).
+Implementation has not yet been done.
 
 
 
