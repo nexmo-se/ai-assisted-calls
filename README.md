@@ -1,6 +1,6 @@
 # Sample application using Vonage Voice API to handle AI-assisted voice calls and handover to human agents
 
-You may use this Voice API application to connect voice calls to STS or tradtional STT-LLM-TTS AI engines with the handling call transfers to human participants.
+You may use this Voice API application to connect voice calls to STS or traditional STT-LLM-TTS AI engines including the handling of call transfers to human participants.
 
 Voice calls may be:</br>
 inbound/outbound,</br>
