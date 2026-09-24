@@ -27,9 +27,14 @@ Your new or existing Voice API application may be written with any programming l
 First set up the Connector server (aka middleware server) from the following repository</br>
 
 Deepgram ASR - OpenAI LLM - ElevenLabs TTS</br>
-https://github.com/nexmo-se/dg-oai-11l-connector,</br></br>
+https://github.com/nexmo-se/dg-oai-11l-connector,</br>
 
-Default local (not public!) of any one of the Connector servers `port` is: 6000.
+and launch the server application
+```bash
+node dg-oai-11l-connector-toolcalls.cjs
+```
+
+Default local (not public!) of the Connector server `port` is: 6000.
 
 If you plan to test using a `Local deployment`, you may use ngrok (an Internet tunneling service) for both<br>
 this Voice API application<br>
