@@ -87,8 +87,6 @@ https://yyyyyyyy.ngrok.xxx/rtc</br>
 
 - Click on [Generate public and private key] if you did not yet create or want new ones, save the private key file in this application folder as .private.key (leading dot in the file name).</br>
 
-_Note: There is no need to set a region in the application code itself_
-
 - Click on [Generate new application] if you've just created the application.</br></br>
 
 **IMPORTANT**: If you already have an existing application and just changed some parameter values including created a new public and private key set, do not forget to click on [Save changes] at the bottom of the screen.</br></br>
