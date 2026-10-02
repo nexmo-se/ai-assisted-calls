@@ -71,16 +71,22 @@ Under Capabilities section (click on [Edit] if you do not see this section):
 **Enable** Voice
 - Under Answer URL, leave HTTP GET, and enter</br>
 https://\<host\>:\<port\>/answer</br>
-(replace \<host\> and \<port\> with the public host name and if necessary public port of the server where this sample application is running)</br>
+(replace \<host\> and \<port\> with the public host name and if necessary public port of the server where this sample application is running)</br></br>
 - Under Event URL, **select** HTTP POST, and enter</br>
 https://\<host\>:\<port\>/event</br>
-(replace \<host\> and \<port\> with the public host name and if necessary public port of the server where this sample application is running)</br>
-Note: If you are using ngrok for this sample application, the answer URL and event URL look like:</br>
+(replace \<host\> and \<port\> with the public host name and if necessary public port of the server where this sample application is running)</br></br>
+- If you want to record the call legs, you must enable RTC, then for the corresponding Event URL, **leave** HTTP POST, and enter</br>
+https://\<host\>:\<port\>/rtc</br>
+(replace \<host\> and \<port\> with the public host name and if necessary public port of the server where this sample application is running)</br></br>
+
+
+Note: If you are using ngrok for this sample application, the answer URL, the standard event URL, the RTC event URL look like:</br>
 https://yyyyyyyy.ngrok.xxx/answer</br>
-https://yyyyyyyy.ngrok.xxx/event</br> 	
+https://yyyyyyyy.ngrok.xxx/event</br>
+https://yyyyyyyy.ngrok.xxx/rtc</br>
+
 - Click on [Generate public and private key] if you did not yet create or want new ones, save the private key file in this application folder as .private.key (leading dot in the file name).</br>
 
-- Make sure a value is selected in the dropdown under **Region**</br>
 _Note: There is no need to set a region in the application code itself_
 
 - Click on [Generate new application] if you've just created the application.</br></br>
@@ -100,7 +106,10 @@ For the next steps, you will need:</br>
 ### Local deployment
 
 Copy or rename .env-example to .env<br>
+
 Update parameters in .env file<br>
+If you want to record call legs, set the parameter RECORD_CALLS to true.
+
 Have Node.js installed on your system, this application has been tested with Node.js version 22.16<br>
 
 Install node modules with the command:<br>

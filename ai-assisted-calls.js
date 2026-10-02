@@ -9,6 +9,8 @@ const express = require('express');
 const bodyParser = require('body-parser')
 const app = express();
 const crypto = require('crypto');
+const fs = require('fs');
+const axios = require('axios');
 
 app.use(bodyParser.json());
 
@@ -26,16 +28,34 @@ app.use(function (req, res, next) {
 
 const { Auth } = require('@vonage/auth');
 
+const appId = process.env.APP_ID; // used by tokenGenerate
+const privateKey = fs.readFileSync('./.private.key'); // private key file name with a leading dot 
+
 const credentials = new Auth({
   apiKey: process.env.API_KEY,
   apiSecret: process.env.API_SECRET,
-  applicationId: process.env.APP_ID,
-  privateKey: './.private.key'    // private key file name with a leading dot 
+  // applicationId: process.env.APP_ID,
+  applicationId: appId,
+  // privateKey: './.private.key',
+  privateKey: privateKey
 });
 
 const { Vonage } = require('@vonage/server-sdk');
 
 const vonage = new Vonage(credentials);
+
+//-- Vonage API - For optional call leg recording --
+
+const apiBaseUrl = process.env.API_BASE_URL;
+
+const { tokenGenerate } = require('@vonage/jwt');
+
+let recordCalls = false;
+if (process.env.RECORD_CALLS == 'true') {
+  recordCalls = true
+}
+
+const recordingFileFormat = process.env.RECORDING_FILE_FORMAT;
 
 //-- Vonage API - A phone number associated to this application (see in dashboard) --
 
@@ -46,22 +66,6 @@ console.log('------------------------------------------------------------');
 
 //-- For tests - Human Agent or Contact Center phone number --
 const humanAgentPhoneNumber = process.env.HUMAN_AGENT_PHONE_NUMBER
-
-//-- Vonage API - For optional call leg recording --
-
-const fs = require('fs');
-const axios = require('axios');
-
-const appId = process.env.APP_ID; // used by tokenGenerate
-const privateKey = fs.readFileSync('./.private.key'); // used by tokenGenerate
-const { tokenGenerate } = require('@vonage/jwt');
-
-const apiBaseUrl = process.env.API_BASE_URL;
-
-// let recordCalls = false;
-// if (process.env.RECORD_CALLS == 'true') {
-//   recordCalls = true
-// }
 
 //-------------------
 
@@ -174,7 +178,7 @@ app.get('/call', async(req, res) => {
       session[newSessionId]["original_convuuid1"] = res.conversation_uuid;
       console.log(">>> Outgoing PSTN call status:", res);
       // debug
-      console.log("\n >>> Sessions:", session);
+      // console.log("\n >>> Sessions:", session);
       })
     .catch(err => console.error(">>> Outgoing PSTN call error:", err))
   }
@@ -193,7 +197,7 @@ app.get('/answer', async(req, res) => {
   //--
 
   const nccoResponse = [
-    {                     //-- this talk action section is optional
+    {                     
       "action": "talk",   
       // "text": "Connecting your call. You may now speak.",
       "text": "Hello and good bye!",
@@ -231,6 +235,82 @@ app.post('/event_1', async(req, res) => {
 
   res.status(200).send('Ok');
 
+  const uuid = req.body.uuid;
+
+  //- call leg 1 recording --
+
+  // if (req.body.status == 'ringing' && recordCalls) {  
+  if (req.body.status == 'answered' && recordCalls) { 
+
+    const accessToken = tokenGenerate(appId, privateKey, {});
+
+    try { 
+      const response = await axios.post(apiBaseUrl + '/v1/legs/' + uuid + '/recording', // see https://nexmoinc.github.io/conversation-service-docs/docs/api/create-recording/
+        {
+          "split": true,
+          "streamed": true,
+          "public": true,
+          "validity_time": 30,
+          "format": recordingFileFormat
+        },
+        {
+          headers: {
+            "Authorization": 'Bearer ' + accessToken,
+            "Content-Type": 'application/json'
+          }
+        }
+      );
+      console.log('\n>>> Start recording on call leg 1:', uuid, response.body);
+    } catch (error) {
+      console.log('\n>>> Error start recording on call leg 1:', uuid, error);
+    }
+
+  }
+
+  //-- 
+
+  if (req.body.status == 'completed') {
+
+    const sessionId = Object.keys(session).find((theSessionId) => session[theSessionId]["uuid1"] == uuid);
+
+    // wait a very short time
+    setTimeout( async () => {
+
+      // check if there is an agent call
+      const uuid2 = session[sessionId]["uuid2"];
+
+      if (uuid2) {
+
+        const leg2Call = await vonage.voice.getCall(uuid2);          
+
+        if (leg2Call.status != 'completed') {  // check if other call is still active or not
+
+          await vonage.voice.playTTS(uuid2,  
+            {
+              text: 'Person on call leg 1 hung up, so your call is terminated.', // change this TTS text as needed for your use case
+              language: 'en-US', 
+              style: 11
+            })
+            .then(resp => console.log('>>> Play TTS on call leg 2', uuid))
+            .catch(err => console.error('>>> Play TTS error on call leg 2', uuid, err));   
+
+          //-
+
+          setTimeout( async () => {
+            await vonage.voice.hangupCall(uuid2)
+              .then(res => console.log(`>>> Terminated leg 2 call ${uuid2}`))
+              .catch(err => console.error(`>>> Leg 2 call ${uuid2} tear down error`, err));
+          }, 6000); // approximate above TTS duration
+      
+        }   
+
+      }
+
+    }, 200)
+  }
+
+  //--
+
  });
 
 //------------
@@ -256,51 +336,44 @@ app.post('/event_2', async(req, res) => {
   console.log(">>>/event_2:\n" + JSON.stringify(req.body));
 
   // const hostName = req.hostname;
-  // const uuid = req.body.uuid;
+  const uuid = req.body.uuid;
+  const uuid1 = session[sessionId]["uuid1"];
+
+  console.log('+++ zone 10, uuid1:', uuid1);
 
   // //--
 
-  //   if (req.body.status == 'ringing' && recordCalls) {  
+  // if (req.body.status == 'ringing' && recordCalls) {  
+  if (req.body.status == 'answered' && recordCalls) { 
 
-  //   const accessToken = tokenGenerate(appId, privateKey, {});
+    const accessToken = tokenGenerate(appId, privateKey, {});
 
-  //   try { 
-  //     const response = await axios.post(apiBaseUrl + '/v1/legs/' + uuid + '/recording',
-  //       {
-  //         "split": true,
-  //         "streamed": true,
-  //         "public": true,
-  //         "validity_time": 30,
-  //         "format": "mp3"
-  //       },
-  //       {
-  //         headers: {
-  //           "Authorization": 'Bearer ' + accessToken,
-  //           "Content-Type": 'application/json'
-  //         }
-  //       }
-  //     );
-  //     console.log('\n>>> Start recording on leg:', uuid);
-  //   } catch (error) {
-  //     console.log('\n>>> Error start recording on leg:', uuid, error);
-  //   }
+    try { 
+      const response = await axios.post(apiBaseUrl + '/v1/legs/' + uuid + '/recording',
+        {
+          "split": true,
+          "streamed": true,
+          "public": true,
+          "validity_time": 30,
+          "format": recordingFileFormat
+        },
+        {
+          headers: {
+            "Authorization": 'Bearer ' + accessToken,
+            "Content-Type": 'application/json'
+          }
+        }
+      );
+      console.log('\n>>> Start recording on call leg 2:', uuid);
+    } catch (error) {
+      console.log('\n>>> Error start recording on call leg 2:', uuid, error);
+    }
 
-  // }
+  }
 
-  // //--
+  //--
 
   if (req.body.type == 'transfer') {  // this is when the party 2 call leg is effectively connected to the named conference
-
-    // transfer party 1 call leg into same conference as where party 2 is already is
-
-    // const ncco = [
-    //   {
-    //     "action": "conversation",
-    //     "name": "conf_" + sessionId, // put in a unique conference name using the session ID
-    //     "startOnEnter": true,
-    //     // "endOnExit": true
-    //   }
-    // ];
 
     const ncco = [
       {
@@ -308,14 +381,47 @@ app.post('/event_2', async(req, res) => {
         "conversationId": req.body.conversation_uuid_to
       }
     ];
-
-    const uuid1 = session[sessionId]["uuid1"]
        
     vonage.voice.transferCallWithNCCO(uuid1, ncco)
     .then(res => console.log(`>>> Party 1 call leg ${uuid1} dropped into same conversation as for party 2`))
     .catch(err => console.error(`>>> Error trying to put party 1 call leg ${uuid1} into same conversation as for party 2`, err))  
 
   };
+
+  //-- 
+
+  if (req.body.status == 'completed') {
+
+    // wait a very short time
+    setTimeout( async() => {
+
+      const leg1Call = await vonage.voice.getCall(uuid1);
+
+      if (leg1Call.status != 'completed') {  // check if call leg 1 is still active or not
+
+        await vonage.voice.playTTS(uuid1,  
+          {
+            text: 'Person on call leg 2 hung up, so your call is terminated.', // change this TTS text as needed for your use case
+            language: 'en-US', 
+            style: 11
+          })
+          .then(resp => console.log('>>> Play TTS on call leg 1', uuid1))
+          .catch(err => console.error('>>> Play TTS error on call leg 1', uuid1, err));
+
+        //-
+
+        setTimeout( async () => {
+          await vonage.voice.hangupCall(uuid1)
+            .then(res => console.log(`>>> Terminated leg 1 call ${uuid1}`))
+            .catch(err => console.error(`>>> Leg 1 call ${uuid1} tear down error`, err));
+        }, 6000); // approximate above TTS duration
+      
+      }   
+
+    }, 200)
+  }
+
+  //--
 
 });
 
@@ -398,7 +504,7 @@ app.post('/transfer', async(req, res) => {
 
       const ncco = [
         // the announcement is normally by the TTS from WebSocket before this transfer
-        // the following TTS is just for tests
+        // the following TTS using Voice API TTS is just for tests
         {
           "action": "talk",
           "text": "We are connecting your call to a human agent, please wait",
@@ -418,7 +524,6 @@ app.post('/transfer', async(req, res) => {
       .catch(err => console.error(`>>> Error trying to put customer call leg  ${uuid1} on hold`, err))
 
       // TO ADD HERE - play MoH to this leg (until human agent takes the call)
-
     }  
 
   }
@@ -434,38 +539,22 @@ app.post('/transfer', async(req, res) => {
 
       //-- handling agent call leg --
 
-      // const ncco = [
-      //   // the announcement is normally by the TTS from WebSocket before this transfer
-      //   // the following TTS is just for tests
-      //   {
-      //     "action": "talk",
-      //     "text": "We are connecting you with the customer, please wait",
-      //     "language": "en-US",
-      //     "style": 11
-      //   },
-      //   {
-      //     "action": "conversation",
-      //     "name": "conf_" + sessionId, // put in a unique conference name using the session ID
-      //     "startOnEnter": true,
-      //     // "endOnExit": true
-      //   }
-      // ];
-
       const ncco = [
         // the announcement is normally by the TTS from WebSocket before this transfer
-        // the following TTS is just for tests
+        // the following TTS from the Voice APi TTS is just for tests
         {
           "action": "talk",
-          "text": "We are connecting you with the customer, please wait",
+          "text": "You are connected",
           "language": "en-US",
           "style": 11
         },
-        {
-          "action": "record",
-          "eventUrl": [`https://${hostName}/recordings`],
-          "split": "conversation",
-          "channels": 2
-        },
+        // this is commented out because per-leg recording is the substitute
+        // {
+        //   "action": "record",
+        //   "eventUrl": [`https://${hostName}/recordings`],
+        //   "split": "conversation",
+        //   "channels": 2
+        // },
         {
           "action": "wait",
           "timeout": 60     // in seconds
@@ -510,11 +599,27 @@ app.post('/rtc', async(req, res) => {
 
     case "audio:record:done": // leg recording, get the audio file
       console.log('\n>>> /rtc audio:record:done');
-      console.log('req.body.body.destination_url', req.body.body.destination_url);
-      console.log('req.body.body.recording_id', req.body.body.recording_id);
+      // console.log('req.body.body.destination_url', req.body.body.destination_url);
 
-      await vonage.voice.downloadRecording(req.body.body.destination_url, './post-call-data/' + req.body.body.recording_id + '_' + req.body.body.channel.id + '.mp3');
- 
+      const uuid = req.body.body.channel.legs[0].leg_id;
+
+      //- retrieve session id from leg uuid
+      let sessionId = null;
+      
+      sessionId = Object.keys(session).find((theSessionId) => session[theSessionId]["uuid1"] == uuid);
+
+      if (!sessionId) {
+        sessionId = Object.keys(session).find((theSessionId) => session[theSessionId]["uuid2"] == uuid);
+      }
+
+      //- normalize start time character string
+      const startTime = req.body.body.start_time.replace(/:/g, '-');
+
+      // debug
+      // console.log(`>>> Call leg ${uuid} is linked to session ${sessionId}`);
+
+      await vonage.voice.downloadRecording(req.body.body.destination_url, `./post-call-data/${sessionId}_${startTime}.${req.body.body.format}`);
+
       break;
 
     case "audio:transcribe:done": // leg recording, get the transcript
